@@ -5,8 +5,6 @@ from OpenGL.arrays import vbo
 from numpy import array
 import sys, math, os
 
-
-
 EXIT = -1
 FIRST = 0
 
@@ -20,27 +18,28 @@ def init(width, height):
 
 
 def display():
-   global points, vbo, center, scale, rotx, roty, rotz
-   """ Render all objects"""
-   glClear(GL_COLOR_BUFFER_BIT) #clear screen
-   glColor(0.0, 0.0, 1.0)       #render stuff
-   #glRectf(-1.0 ,-1.0 ,1.0, 1.0)
-   glColor(1.0, 0.0, 0.0)  # render stuff
-   glLoadIdentity()
-   glRotate(rotx, 1,0,0)   #winkel, x, y, z
-   glRotate(roty, 0,1,0)   #winkel, x, y, z
-   glRotate(rotz, 0,0,1)   #winkel, x, y, z
-   glScale(scale, scale, scale)
-   glTranslatef(-center[0], -center[1], -center[2])
+    global vbo, vertices, normals, faces, scale, center, data
+    glClear(GL_COLOR_BUFFER_BIT) #clear screen
+    glColor(0.0, 0.0, 1.0)       #render stuff
+    #glRectf(-1.0 ,-1.0 ,1.0, 1.0)
+    glLoadIdentity()
 
-   vbo.bind()
-   glVertexPointerf(vbo)
-   glEnableClientState(GL_VERTEX_ARRAY)
-   glDrawArrays(GL_POINTS, 0, len(points))
-   vbo.unbind()
-   glDisableClientState(GL_VERTEX_ARRAY)
+    vbo.bind()
+    glEnableClientState(GL_VERTEX_ARRAY)
+    glEnableClientState(GL_NORMAL_ARRAY)
 
-   glutSwapBuffers()  # swap buffer
+    glVertexPointer(3, GL_FLOAT, 24, vbo)
+    glNormalPointer(GL_FLOAT, 24, vbo + 12)
+
+    glScale(scale, scale, scale)
+    glTranslate(-center[0], -center[1], -center[2])
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+    glDrawArrays(GL_TRIANGLES, 0, len(data))
+    vbo.unbind()
+    glDisableClientState(GL_VERTEX_ARRAY)
+
+    glutSwapBuffers()            #swap buffer
 
 
 def reshape(width, height):
@@ -60,36 +59,15 @@ def reshape(width, height):
 
 
 def keyPressed(key, x, y):
-
-   global rotx, roty, rotz
-
-   angleAdd = 20
-
    """ handle keypress events """
    if key == chr(27): # chr(27) = ESCAPE
        sys.exit()
-   elif key == 'x':
-      rotx = (rotx+angleAdd)%360
-   elif key == 'X':
-      rotx = (rotx-angleAdd)%360
-   elif key == 'y':
-      roty = (roty+angleAdd)%360
-   elif key == 'Y':
-      roty = (roty-angleAdd)%360
-   elif key == 'z':
-      rotz = (rotz+angleAdd)%360
-   elif key == 'Z':
-      rotz = (rotz-angleAdd)%360
-
-   glutPostRedisplay()  #display wird aufgerufen
 
 
 def mouse(button, state, x, y):
    """ handle mouse events """
    if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
        print "left mouse button pressed at ", x, y
-   if button == GLUT_LEFT_BUTTON and state == GLUT_UP:
-      print "Linke Maustaste losgelassen"
 
 
 def mouseMotion(x,y):
@@ -104,10 +82,34 @@ def menu_func(value):
        sys.exit()
    glutPostRedisplay()
 
+def loadObj(filename):
+   oVertices = []
+   oNormales = []
+   oFaces = []
+
+   for line in file(filename):
+      if line.split():
+         check = line.split()[0]
+         if check == 'v':
+            oVertices.append(map(float, line.split()[1:]))
+         if check == 'vn':
+            oNormales.append(map(float, line.split()[1:]))
+         if check == 'f':
+            faces = line.split()[1:]
+            for face in faces:
+               oFaces.append(map(float, face.split('//')))
+
+   for face in oFaces:
+      if len(face) == 1:
+         face.insert(1, 1.0)
+         face.insert(2, 1.0)
+      if len(face) == 2:
+         face.insert(1, 1.0)
+
+   return oVertices, oNormales, oFaces
 
 def main():
-   global vbo, points, scale, center, rotx, roty, rotz
-   rotx, roty, rotz = 0,0,0
+   global vbo, vertices, normals, faces, center, scale, data
    # Hack for Mac OS X
    cwd = os.getcwd()
    glutInit(sys.argv)
@@ -124,16 +126,32 @@ def main():
    glutMotionFunc(mouseMotion)  #register motion function
    glutCreateMenu(menu_func)    #register menue function
 
-   glutAddMenuEntry("First Entry",FIRST) #Add a menu entry
-   glutAddMenuEntry("EXIT",EXIT)         #Add another menu entry
-   glutAttachMenu(GLUT_RIGHT_BUTTON)     #Attach mouse button to menue
 
-   points = [map(float, x.split()) + [1.0] for x in file(sys.argv[1]).readlines()]
-   vbo = vbo.VBO(array(points, 'f'))
-   boundingBox = [map(min, zip(*points)), map(max, zip(*points))]
+   vertices, normals, faces = loadObj(sys.argv[1])
+   print (faces[0])
+   data = []
+   boundingBox = [map(min, zip(*vertices)), map(max, zip(*vertices))]
    center = [(x[0] + x[1]) / 2.0 for x in zip(*boundingBox)]
    scale = 2.0 / max([(x[1] - x[0]) for x in zip(*boundingBox)])
 
+   for vertex in faces:
+       v = int(vertex[0])-1
+       vn = int(vertex[2])-1
+
+       if normals:
+           data.append(vertices[v] + normals[vn])
+       else:
+           l = math.sqrt(vertices[v][0]**2 + vertices[v][1]**2 + vertices[v][2]**2)
+           norm = [x/l for x in vertices[v]]
+           data.append(vertices[v]+norm)
+
+   vbo = vbo.VBO(array(data, 'f'))
+
+
+
+   glutAddMenuEntry("First Entry",FIRST) #Add a menu entry
+   glutAddMenuEntry("EXIT",EXIT)         #Add another menu entry
+   glutAttachMenu(GLUT_RIGHT_BUTTON)     #Attach mouse button to menue
 
    init(500,500) #initialize OpenGL state
 

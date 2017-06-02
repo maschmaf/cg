@@ -21,6 +21,7 @@ p12 = [-0.0, 0.3]
 p13 = [0.1, 0.2]
 p14 = [0.2, 0.3]
 
+"""
 rect1 = [p1, p2, p3]
 rect2 = [p2, p3, p4]
 rect3 = [p3, p4, p5]
@@ -34,7 +35,14 @@ rect10 = [p10, p11, p12]
 rect11 = [p11, p12, p13]
 rect12 = [p12, p13, p14]
 points = [rect1, rect2, rect3, rect4, rect5, rect6, rect7, rect8, rect9, rect10, rect11, rect12]
-vbo = vbo.VBO(array(points, 'f'))
+"""
+
+points = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14]
+indices = [1, 2, 3, 4, 5, 6, 7, 6,  8,  9, 8, 10, 11, 12, 13, 14]
+
+indexed_points = [points[i-1] for i in indices]
+
+vbo = vbo.VBO(array(indexed_points, 'f'))
 
 WIDTH = 500
 HEIGTH = 500
@@ -54,7 +62,7 @@ def display():
     vbo.bind()
     glVertexPointerf(vbo)
     glEnableClientState(GL_VERTEX_ARRAY)
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 36)
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, len(indices))
     vbo.unbind()
     glDisableClientState(GL_VERTEX_ARRAY)
 
@@ -64,7 +72,7 @@ def main(args):
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)
     glutInitWindowSize(WIDTH, HEIGTH)
-    glutCreateWindow("GL_TRIANGLES")
+    glutCreateWindow("GL_TRIANGLE_STRIP")
     glutDisplayFunc(display)
     initGL(500, 500)
     glutMainLoop()
