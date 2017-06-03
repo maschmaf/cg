@@ -14,6 +14,7 @@ angle = 10
 polygon = False
 translation = False
 zoom = False
+shadow = False
 orthogonal = True
 zoomFactor = 0
 newXPos = 0.0
@@ -45,9 +46,14 @@ red = (1.0, 0.0, 0.0, 0.0)
 
 startP = (0.0, 0.0)
 
+lightX = 0.1
+lightY = 10.0
+lightZ = 0.1
+
 def init(width, height):
    """ Initialize an OpenGL window """
-   glClearColor(0.0, 0.0, 0.0, 0.0)         #background color
+   glClearColor(white[0], white[1], white[2], 0.0)         #background color
+   glColor(blue)
    glMatrixMode(GL_PROJECTION)              #switch to projection matrix
    glLoadIdentity()                         #set to 1
    glOrtho(-1.5, 1.5, -1.5, 1.5, -1.0, 1.0) #multiply with new p-matrix
@@ -87,7 +93,7 @@ def reshape(width, height):
 
 def keyPressed(key, x, y):
    """ handle keypress events """
-   global backOrFront, polygon, orthogonal, WIDTH, HEIGHT
+   global backOrFront, polygon, orthogonal, WIDTH, HEIGHT, shadow
 
    if (key == 'K' or key == 'k'):
        backOrFront = 0
@@ -126,6 +132,8 @@ def keyPressed(key, x, y):
    if (key == 'O' or key == 'o'):
        orthogonal = not orthogonal
        reshape(WIDTH, HEIGHT)
+   if (key == 'H' or key == 'h'):
+       shadow = not shadow
    glutPostRedisplay()
 
 
@@ -256,12 +264,11 @@ def loadObj(filename):
 
 
 def display():
-    global vbo, scale, data, actOri, angle, axis, polygon
+    global vbo, scale, data, actOri, angle, axis, polygon, lightX, lightY, lightZ
 
     glMatrixMode(GL_MODELVIEW)
     # Clear framebuffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
     #glRectf(-1.0 ,-1.0 ,1.0, 1.0)
 
 
@@ -280,6 +287,23 @@ def display():
     # Scale
     glScale(scale, scale, scale)
 
+    if shadow:
+        print "Licht!"
+        #calcShadow()
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_NORMALIZE)
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glShadeModel(GL_FLAT)
+        glEnable(GL_COLOR_MATERIAL)
+        glLightfv(GL_LIGHT0, GL_POSITION, [lightX, lightY, lightZ, 1.0])
+        glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE)
+    else:
+        print "Licht aus!"
+        glDisable(GL_DEPTH_TEST)
+        glDisable(GL_LIGHTING)
+        glDisable(GL_LIGHT0)
+
     if polygon:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
     else:
@@ -292,6 +316,23 @@ def display():
 
     glutSwapBuffers()            #swap buffer
 
+def calcShadow():
+    global lightX, lightY, lightZ
+    glDisable(GL_DEPTH_TEST)
+    glDisable(GL_LIGHTING)
+
+    #WINKEL BEACHTEN!
+
+    glTranslate(lightX, lightY, lightZ)
+    if lightY == 0.0:
+        lightY = 0.1
+    p = matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 1/-lightY, 0, 0]])
+    glMultMatrixf(p)
+    glTranslate(-lightX, -lightY, -lightZ)
+    #glTranslatef()
+    glDisable(GL_DEPTH_TEST)
+    glDisable(GL_LIGHTING)
+    glColor3f(0.15, 0.15, 0.15)
 
 def main():
    global vbo, vertices, normals, faces, center, scale, data, WIDTH, HEIGHT
@@ -310,7 +351,6 @@ def main():
    glutMouseFunc(mouse)         #register mouse function
    glutMotionFunc(mouseMotion)  #register motion function
    glutCreateMenu(menu_func)    #register menue function
-
 
    vertices, normals, faces = loadObj(sys.argv[1])
    data = []
