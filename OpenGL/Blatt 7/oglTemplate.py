@@ -11,7 +11,7 @@ FIRST = 0
 backOrFront = 0
 doRotation = False
 angle = 10
-polygon = False
+wire = True
 translation = False
 zoom = False
 shadow = False
@@ -20,11 +20,13 @@ zoomFactor = 0
 newXPos = 0.0
 newYPos = 0.0
 
+light = False
+
 mouseLastX = None
 mouseLastY = None
 
-WIDTH, HEIGHT = 500, 500
-aspect = float(WIDTH/HEIGHT)
+WIDTH, HEIGTH = 500, 500
+aspect = float(WIDTH/HEIGTH)
 fov = 45.0
 near = 0.1
 far = 100.0
@@ -34,7 +36,10 @@ actOri = matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 axis = [1., 0., 0.]
 
 MAXZOOM = 1.5
-MINZOOM = -1.5
+MINZOOM = -10.0
+
+CAMERA_Z = 4
+PLANE = 1.5
 
 # color definitions
 black = (0.0, 0.0, 0.0, 0.0)
@@ -46,12 +51,15 @@ red = (1.0, 0.0, 0.0, 0.0)
 
 startP = (0.0, 0.0)
 
-lightX = 0.1
-lightY = 10.0
-lightZ = 0.1
+lightX = 0.01
+lightY = 20
+lightZ = 0.01
 
-def init(width, height):
+#modelList = []
+
+def init(width, heigth):
    """ Initialize an OpenGL window """
+   global modelList
    glClearColor(white[0], white[1], white[2], 0.0)         #background color
    glColor(blue)
    glMatrixMode(GL_PROJECTION)              #switch to projection matrix
@@ -60,29 +68,29 @@ def init(width, height):
    glMatrixMode(GL_MODELVIEW)               #switch to modelview matrix
 
 
-def reshape(width, height):
+def reshape(width, heigth):
    """ adjust projection matrix to window size"""
    global zoomFactor, orthogonal, fov, near, far
 
    #HIER WEITER MACHEN!
-   aspect = float(width) / height
-   aspectHeight = float(height) / width
+   aspect = float(width) / heigth
+   aspectHeigth = float(heigth) / width
 
-   glViewport(0, 0, width, height)
+   glViewport(0, 0, width, heigth)
    glMatrixMode(GL_PROJECTION)
    glLoadIdentity()
    if orthogonal:
-       if width == height:
+       if width == heigth:
            glOrtho(-1.5 + zoomFactor, 1.5 - zoomFactor, -1.5 + zoomFactor, 1.5 - zoomFactor, -1.0, 1.0)
-       elif width <= height:
-           glOrtho(-1.5 + zoomFactor, 1.5 - zoomFactor, (-1.5 + zoomFactor) * aspectHeight,
-                   (1.5 - zoomFactor) * aspectHeight, -1.0, 1.0)
+       elif width <= heigth:
+           glOrtho(-1.5 + zoomFactor, 1.5 - zoomFactor, (-1.5 + zoomFactor) * aspectHeigth,
+                   (1.5 - zoomFactor) * aspectHeigth, -1.0, 1.0)
        else:
            glOrtho((-1.5 + zoomFactor) * aspect, (1.5 - zoomFactor) * aspect, -1.5 + zoomFactor, 1.5 - zoomFactor,
                    -1.0, 1.0)
    else:
-       if width <= height:
-           gluPerspective(fov * aspectHeight, aspect, near, far)
+       if width <= heigth:
+           gluPerspective(fov * aspectHeigth, aspect, near, far)
        else:
            gluPerspective(fov, aspect, near, far)
        gluLookAt(0, 0, 3 + zoomFactor, 0, 0, 0, 0, 1, 0)
@@ -93,7 +101,7 @@ def reshape(width, height):
 
 def keyPressed(key, x, y):
    """ handle keypress events """
-   global backOrFront, polygon, orthogonal, WIDTH, HEIGHT, shadow
+   global backOrFront, wire, orthogonal, WIDTH, HEIGTH, shadow, lightX, light
 
    if (key == 'K' or key == 'k'):
        backOrFront = 0
@@ -128,12 +136,16 @@ def keyPressed(key, x, y):
        else:
            glClearColor(yellow[0], yellow[1], yellow[2], 1.0)
    if (key == 'P' or key == 'p'):
-       polygon = not polygon
+       wire = not wire
    if (key == 'O' or key == 'o'):
        orthogonal = not orthogonal
-       reshape(WIDTH, HEIGHT)
+       reshape(WIDTH, HEIGTH)
    if (key == 'H' or key == 'h'):
        shadow = not shadow
+   if (key == 'Z' or key == 'z'):
+       light = not light
+
+
    glutPostRedisplay()
 
 
@@ -151,7 +163,7 @@ def rotate(angle, axis):
 
 
 def projectOnSphere(x, y, r):
-    x, y = x - WIDTH/2.0, HEIGHT/2.0 - y
+    x, y = x - WIDTH/2.0, HEIGTH/2.0 - y
     a = min(r*r, x*x, y*y)
     z = sqrt(r*r - a)
     l = sqrt(x*x + y*y + z*z)
@@ -159,12 +171,12 @@ def projectOnSphere(x, y, r):
 
 
 def mouse(button, state, x, y):
-   global doRotation, WIDTH, HEIGHT, translation, mouseLastX, mouseLastY, zoom, startP, actOri, angle, axis
+   global doRotation, WIDTH, HEIGTH, translation, mouseLastX, mouseLastY, zoom, startP, actOri, angle, axis
 
    mouseLastX, mouseLastY = None, None
 
    """ handle mouse events """
-   r = min(WIDTH,HEIGHT)/2.0
+   r = min(WIDTH,HEIGTH)/2.0
    if button == GLUT_LEFT_BUTTON:
        if state == GLUT_DOWN:
            doRotation = True
@@ -188,7 +200,7 @@ def mouse(button, state, x, y):
 
 
 def mouseMotion(x,y):
-   global WIDTH, HEIGHT, angle, scale, startP, axis, translation, zoom, zoomFactor
+   global WIDTH, HEIGth, angle, scale, startP, axis, translation, zoom, zoomFactor
    global mouseLastX, mouseLastY, newXPos, newYPos
 
    xDiff = 0
@@ -201,19 +213,26 @@ def mouseMotion(x,y):
        yDiff = y - mouseLastY
 
    if doRotation:
-       r = min(WIDTH, HEIGHT) / 2.0
+       r = min(WIDTH, HEIGTH) / 2.0
        moveP = projectOnSphere(x,y,r)
        angle = math.acos(dot(startP, moveP))
        axis = cross(startP, moveP)
 
    if zoom:
        if mouseLastY < y:
-           #zoomFactor = zoomFactor - 0.1 if zoomFactor > MINZOOM else zoomFactor
            zoomFactor += 0.01
+           if zoomFactor >= MAXZOOM:
+               zoomFactor = MAXZOOM - 0.01
+           if zoomFactor <= MINZOOM:
+               zoomFactor = MINZOOM
+
        if mouseLastY > y:
            zoomFactor -= 0.01
-           #zoomFactor = zoomFactor + 0.1 if zoomFactor < MINZOOM else zoomFactor
-       reshape(WIDTH, HEIGHT)
+           if zoomFactor >= MAXZOOM:
+               zoomFactor = MAXZOOM - 0.01
+           if zoomFactor <= MINZOOM:
+               zoomFactor = MINZOOM
+       reshape(WIDTH, HEIGTH)
 
    if translation:
        transScale = float(WIDTH) / 2.0
@@ -264,12 +283,23 @@ def loadObj(filename):
 
 
 def display():
-    global vbo, scale, data, actOri, angle, axis, polygon, lightX, lightY, lightZ
+    global vbo, scale, data, actOri, angle, axis, wire, lightX, lightY, lightZ
 
-    glMatrixMode(GL_MODELVIEW)
     # Clear framebuffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    #glRectf(-1.0 ,-1.0 ,1.0, 1.0)
+
+    # Reset modelview matrix
+    glLoadIdentity()
+
+    if light:
+        glEnable(GL_LIGHTING)
+        glEnable(GL_LIGHT0)
+        glEnable(GL_COLOR_MATERIAL)
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_NORMALIZE)
+        glLightfv(GL_LIGHT0, GL_POSITION, [lightX, lightY, lightZ])
+    else:
+        glDisable(GL_LIGHTING)
 
 
     vbo.bind()
@@ -286,63 +316,138 @@ def display():
 
     # Scale
     glScale(scale, scale, scale)
+    glTranslatef(-center[0], -center[1], -center[2])  # move to center
+    glEnable(GL_DEPTH_TEST)
+    glEnable(GL_NORMALIZE)
+    #glShadeModel(GL_FLAT)
+    #reshape(WIDTH, HEIGTH)
 
-    if shadow:
-        print "Licht!"
+
+    #if shadow:
+        #print "Schatten!"
         #calcShadow()
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_NORMALIZE)
-        glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
-        glShadeModel(GL_FLAT)
-        glEnable(GL_COLOR_MATERIAL)
-        glLightfv(GL_LIGHT0, GL_POSITION, [lightX, lightY, lightZ, 1.0])
-        glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE)
-    else:
-        print "Licht aus!"
-        glDisable(GL_DEPTH_TEST)
-        glDisable(GL_LIGHTING)
-        glDisable(GL_LIGHT0)
+    #else:
+        #print "Kein Schatten!"
+        #glDisable(GL_LIGHTING)
+        #glDisable(GL_DEPTH_TEST)
+        #glDisable(GL_LIGHTING)
+        #glDisable(GL_LIGHT0)
 
-    if polygon:
+    if wire:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+        glDrawArrays(GL_TRIANGLES, 0, len(data))
     else:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+        glDrawArrays(GL_TRIANGLES, 0, len(data))
 
-    glDrawArrays(GL_TRIANGLES, 0, len(data))
+
     vbo.unbind()
+
     glDisableClientState(GL_VERTEX_ARRAY)
     glDisableClientState(GL_NORMAL_ARRAY)
 
     glutSwapBuffers()            #swap buffer
 
 def calcShadow():
-    global lightX, lightY, lightZ
-    glDisable(GL_DEPTH_TEST)
-    glDisable(GL_LIGHTING)
+    global lightX, lightY, lightZ#, modelList
 
-    #WINKEL BEACHTEN!
-
-    glTranslate(lightX, lightY, lightZ)
-    if lightY == 0.0:
-        lightY = 0.1
-    p = matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 1/-lightY, 0, 0]])
+    #glCallList(modelList)
+    p = matrix([[1.0, 0, 0, 0], [0, 1.0, 0, 0], [0, 0, 1.0, 0], [0, -1/lightY, 0, 0]]).transpose()
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glTranslatef(lightX, lightY, lightZ)
     glMultMatrixf(p)
-    glTranslate(-lightX, -lightY, -lightZ)
-    #glTranslatef()
-    glDisable(GL_DEPTH_TEST)
-    glDisable(GL_LIGHTING)
+    glTranslatef(-lightX, -lightY, -lightZ)
     glColor3f(0.15, 0.15, 0.15)
+    #glCallList(modelList)
+    glPopMatrix()
+
+
+
+
+
+def initGeometryFromObjFile():
+    '''
+    load obj File, init Bounding Box, init Faces
+    '''
+    global vbo, scale, center, data
+
+    # check parameters
+    if len(sys.argv) == 1:
+        print "python oglViewer.py objectFile.obj"
+        sys.exit(-1)
+
+    print "Used File: ", sys.argv[1]
+
+    # load obj File
+    objectVertices, objectNormals, objectFaces = loadOBJ(sys.argv[1])
+    data = []
+
+    # Create BoundingBox
+    boundingBox = [map(min, zip(*objectVertices)), map(max, zip(*objectVertices))]
+    # Calc center of bounding box
+    center = [(x[0] + x[1]) / 2.0 for x in zip(*boundingBox)]
+    # Calc scale factor
+    scale = 2.0 / max([(x[1] - x[0]) for x in zip(*boundingBox)])
+
+    # get the right data for the vbo
+    for vertex in objectFaces:
+        vn = int(vertex[0]) - 1
+        nn = int(vertex[2]) - 1
+        if objectNormals:
+            data.append(objectVertices[vn] + objectNormals[nn])
+        else:
+            # calc standard normals, if no objectNormals available
+            normals = [x - y for x, y in zip(objectVertices[vn], center)]
+            l = math.sqrt(normals[0] ** 2 + normals[1] ** 2 + normals[2] ** 2)
+            normals = [x / l for x in normals]
+            data.append(objectVertices[vn] + normals)
+
+    vbo = vbo.VBO(array(data, 'f'))
+
+
+def loadOBJ(filename):
+    '''
+    Load .obj File and return three lists with object-vertices, object-normals and object-faces
+    '''
+    objectVertices = []
+    objectNormals = []
+    objectFaces = []
+    data = []
+
+    for lines in file(filename):
+        # check if not empty
+        if lines.split():
+            check = lines.split()[0]
+            if check == 'v':
+                objectVertices.append(map(float, lines.split()[1:]))
+            if check == 'vn':
+                objectNormals.append(map(float, lines.split()[1:]))
+            if check == 'f':
+                first = lines.split()[1:]
+                for face in first:
+                    objectFaces.append(map(float, face.split('//')))
+
+    for face in objectFaces:
+        # if no vt is available fill up with 0 at list position 1
+        if len(face) == 2:
+            face.insert(1, 0.0)
+        # if no vt and no vn is available fill up with 0 at list position 1 and 2
+        if len(face) == 1:
+            face.insert(1, 0.0)
+            face.insert(2, 0.0)
+
+    return objectVertices, objectNormals, objectFaces
 
 def main():
-   global vbo, vertices, normals, faces, center, scale, data, WIDTH, HEIGHT
+   global WIDTH, HEIGTH
    # Hack for Mac OS X
    cwd = os.getcwd()
    glutInit(sys.argv)
    os.chdir(cwd)
 
    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
-   glutInitWindowSize(WIDTH, HEIGHT)
+   glutInitWindowSize(WIDTH, HEIGTH)
    glutCreateWindow("simple openGL/GLUT template")
 
    glutDisplayFunc(display)     #register display function
@@ -352,26 +457,8 @@ def main():
    glutMotionFunc(mouseMotion)  #register motion function
    glutCreateMenu(menu_func)    #register menue function
 
-   vertices, normals, faces = loadObj(sys.argv[1])
-   data = []
-   boundingBox = [map(min, zip(*vertices)), map(max, zip(*vertices))]
-   center = [(x[0] + x[1]) / 2.0 for x in zip(*boundingBox)]
-   scale = 2.0 / max([(x[1] - x[0]) for x in zip(*boundingBox)])
-
-   for vertex in faces:
-       v = int(vertex[0])-1
-       vn = int(vertex[2])-1
-
-       if normals:
-           data.append(vertices[v] + normals[vn])
-       else:
-           l = math.sqrt(vertices[v][0]**2 + vertices[v][1]**2 + vertices[v][2]**2)
-           norm = [x/l for x in vertices[v]]
-           data.append(vertices[v]+norm)
-
-   vbo = vbo.VBO(array(data, 'f'))
-
-   init(WIDTH,HEIGHT) #initialize OpenGL state
+   initGeometryFromObjFile()
+   init(WIDTH,HEIGTH) #initialize OpenGL state
 
    glutMainLoop() #start even processing
 
