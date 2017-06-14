@@ -80,9 +80,7 @@ def initGL(width, height):
 
     # switch to projection matrix
     glMatrixMode(GL_PROJECTION)
-    # set to 1
     glLoadIdentity()
-    # Camera, multiply with new p-matrix
     glOrtho(-1.5, 1.5, -1.5, 1.5, -10, 10)
     # switch to modelview matrix
     glMatrixMode(GL_MODELVIEW)
@@ -154,14 +152,13 @@ def readOBJ(filename):
                     for face in first:
                         objectFaces.append(map(float, face.split('//')))
 
+    #Fill list
     for face in objectFaces:
-        # if no vt is available fill up with 0 at list position 1
-        if len(face) == 2:
-            face.insert(1, 0.0)
-        # if no vt and no vn is available fill up with 0 at list position 1 and 2
         if len(face) == 1:
             face.insert(1, 0.0)
             face.insert(2, 0.0)
+        if len(face) == 2:
+            face.insert(1, 0.0)
 
     return objectVertices, objectNormals, objectFaces
 
@@ -240,17 +237,18 @@ def mouseMotion(x, y):
         axis = cross(startP, moveP)
 
     if doZoom:
+        value = 0.02
         if mouseLastY < y:
-            zoomFactor += 0.01
+            zoomFactor += value
             if zoomFactor >= MAX_ZOOM:
-                zoomFactor = MAX_ZOOM - 0.01
+                zoomFactor = MAX_ZOOM - value
             if zoomFactor <= MIN_ZOOM:
                 zoomFactor = MIN_ZOOM
 
         if mouseLastY > y:
-            zoomFactor -= 0.01
+            zoomFactor -= value
             if zoomFactor >= MAX_ZOOM:
-                zoomFactor = MAX_ZOOM - 0.01
+                zoomFactor = MAX_ZOOM - value
             if zoomFactor <= MIN_ZOOM:
                 zoomFactor = MIN_ZOOM
         camZ = zoomFactor
