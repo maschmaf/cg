@@ -27,7 +27,8 @@ doTranslation = False
 wire = False
 orthoMode = True
 light = False
-
+shadow = False
+checkNormal = False
 mouseLastX = None
 mouseLastY = None
 
@@ -45,8 +46,9 @@ FOV = 50.0
 NEAR = 0.1
 FAR = 100.0
 
-lightPos = [0, 20, 0]
-
+lightPos = [-15, 20, 0]
+#Fuer Elephant:
+#lightPos = [-15,  5814.569336, 10]
 startP = ()
 
 actOri = matrix([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
@@ -60,7 +62,9 @@ BLUE = (0.0, 0.0, 1.0, 0.0)
 GREEN = (0.0, 1.0, 0.0, 0.0)
 YELLOW = (1.0, 1.0, 0.0, 0.0)
 RED = (1.0, 0.0, 0.0, 0.0)
-SHADOW_COLOR = (0.15, 0.15, 0.15, 0.0)
+SHADOW_COLOR = (0.15, 0.15, 0.15)
+
+currentColor = ()
 
 camX = 0.0
 camY = 0.0
@@ -68,8 +72,10 @@ camZ = 0.0
 
 def initGL(width, height):
     """ Initialize an OpenGL window """
+    global currentColor
     # Set colors
-    glColor(RED)
+    currentColor = WHITE
+    glColor(currentColor)
     glClearColor(BLUE[0], BLUE[1], BLUE[2], BLUE[3])
 
     # switch to projection matrix
@@ -77,7 +83,7 @@ def initGL(width, height):
     # set to 1
     glLoadIdentity()
     # Camera, multiply with new p-matrix
-    glOrtho(-1.5, 1.5, -1.5, 1.5, -1.0, 1.0)
+    glOrtho(-1.5, 1.5, -1.5, 1.5, -10, 10)
     # switch to modelview matrix
     glMatrixMode(GL_MODELVIEW)
 
@@ -91,6 +97,7 @@ def createVBO():
 
     # BoundingBox
     boundingBox = [map(min, zip(*objectVertices)), map(max, zip(*objectVertices))]
+
     # Center BoundingBox
     center = [(x[0] + x[1]) / 2.0 for x in zip(*boundingBox)]
     # Scalefactor
@@ -102,15 +109,29 @@ def createVBO():
         if objectNormals:
             data.append(objectVertices[v] + objectNormals[vn])
         else:
-            # calc standard normals, if no objectNormals available
-            normals = [x - y for x, y in zip(objectVertices[v], center)]
-            l = sqrt(normals[0] ** 2 + normals[1] ** 2 + normals[2] ** 2)
-            normals = [x / l for x in normals]
-            data.append(objectVertices[v] + normals)
+            i1 = int(vertex[0]) - 1
+            i2 = int(vertex[1]) - 1
+            i3 = int(vertex[2]) - 1
+            normal = calNormals(objectVertices[i1], objectVertices[i2], objectVertices[i3])
+            data.append(objectVertices[i1] + normal)
+            data.append(objectVertices[i2] + normal)
+            data.append(objectVertices[i3] + normal)
     vbo = vbo.VBO(array(data, 'f'))
 
 
+# calculate normals for triangles
+def calNormals(p1, p2, p3):
+	U = [p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]]
+	V = [p3[0]-p1[0], p3[1]-p1[1], p3[2]-p1[2]]
+	Nx = (U[1]*V[2]) - (U[2]*V[1])
+	Ny = (U[2]*V[0]) - (U[0]*V[2])
+	Nz = (U[0]*V[1]) - (U[1]*V[0])
+	vn = [Nx, Ny, Nz]
+	return vn
+
+
 def readOBJ(filename):
+    global checkNormal
     objectVertices = []
     objectNormals = []
     objectFaces = []
@@ -122,11 +143,16 @@ def readOBJ(filename):
             if check == 'v':
                 objectVertices.append(map(float, lines.split()[1:]))
             if check == 'vn':
+                checkNormal = True
                 objectNormals.append(map(float, lines.split()[1:]))
             if check == 'f':
                 first = lines.split()[1:]
-                for face in first:
-                    objectFaces.append(map(float, face.split('//')))
+                if not checkNormal:
+                    objectFaces.append(map(float, lines.split()[1:]))
+
+                else:
+                    for face in first:
+                        objectFaces.append(map(float, face.split('//')))
 
     for face in objectFaces:
         # if no vt is available fill up with 0 at list position 1
@@ -248,35 +274,42 @@ def keyPressed(key, x, y):
     '''
     Handle keypress events
     '''
-    global orthoMode, wire, light
+    global orthoMode, wire, light, currentColor, shadow
 
     if key == chr(27):  # chr(27) = ESCAPE
         sys.exit()
 
     if key == 's':
         glColor(BLACK)
+        currentColor = BLACK
     if key == 'S':
         glClearColor(BLACK[0], BLACK[1], BLACK[2], BLACK[3])
     if key == 'w':
         glColor(WHITE)
+        currentColor = WHITE
     if key == 'W':
         glClearColor(WHITE[0], WHITE[1], WHITE[2], WHITE[3])
     if key == 'b':
         glColor(BLUE)
+        currentColor = BLUE
     if key == 'B':
         glClearColor(BLUE[0], BLUE[1], BLUE[2], BLUE[3])
     if key == 'r':
         glColor(RED)
+        currentColor = RED
     if key == 'R':
         glClearColor(RED[0], RED[1], RED[2], RED[3])
     if key == 'g':
         glColor(YELLOW)
+        currentColor = YELLOW
     if key == 'G':
         glClearColor(YELLOW[0], YELLOW[1], YELLOW[2], YELLOW[3])
     if (key == 'o' or key == 'O'):
         wire = not wire
-    if (key == 'h' or key == 'H'):
+    if (key == 'h'):
         light = not light
+    if (key == 'H'):
+        shadow = not shadow
     if (key == 'p' or key == 'P'):
         orthoMode = not orthoMode
         if orthoMode:
@@ -305,10 +338,10 @@ def reshape(width, height):
     if orthoMode:
         if width <= height:
             glOrtho(-1.5 + zoomFactor, 1.5 - zoomFactor, (-1.5 + zoomFactor) * aspectHeight,
-                    (1.5 - zoomFactor) * aspectHeight, -1.0, 1.0)
+                    (1.5 - zoomFactor) * aspectHeight, -10, 10)
         else:
             glOrtho((-1.5 + zoomFactor) * aspectWidth, (1.5 - zoomFactor) * aspectWidth, -1.5 + zoomFactor,
-                    1.5 - zoomFactor, -1.0, 1.0)
+                    1.5 - zoomFactor, -10, 10)
     else:
         if width <= height:
             gluPerspective(FOV * aspectHeight, aspectWidth, NEAR, FAR)
@@ -322,7 +355,8 @@ def reshape(width, height):
 def display():
     """ Render all objects"""
     global scaleFactor, center, vbo, actOri, angle, axis, data, newXPos, newYPos, lightPos
-    global wire, orthoMode, light, boundingBox, lightPos
+    global wire, orthoMode, light, boundingBox, lightPos, currentColor, shadow
+    glMatrixMode(GL_MODELVIEW)
 
     # Clear framebuffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -336,25 +370,9 @@ def display():
         glEnable(GL_COLOR_MATERIAL)
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_NORMALIZE)
-        glLightfv(GL_LIGHT0, GL_POSITION, [lightPos[0], lightPos[1], lightPos[2], 1.0])
-        glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE)
-
-        #glPushMatrix()
-        #glDisable(GL_LIGHTING)
-        #glDisable(GL_DEPTH_TEST)
-        #glTranslatef(0.0, -boundingBox[0][1], 0.0)
-        #p = matrix([[1.0, 0, 0, 0], [0, 1.0, 0, 0], [0, 0, 1.0, 0], [0, -1 / lightPos[1], 0, 0]])
-        ##p = [1.0, 0, 0, 0, 0, 1.0, 0, -1.0 / lightPos[1], 0, 0, 1.0, 0, 0, 0, 0, 0]
-        #glTranslatef(lightPos[0], lightPos[1], lightPos[2])
-        #glMultMatrixf(p)
-        #glTranslatef(-lightPos[0], -lightPos[1], -lightPos[2])
-        #glColor3f(SHADOW_COLOR[0], SHADOW_COLOR[1], SHADOW_COLOR[2])
-        #glTranslate(0.0, boundingBox[0][1], 0.0)
-        #glPopMatrix()
+        glLightfv(GL_LIGHT0, GL_POSITION, [lightPos[0], lightPos[1], lightPos[2], 0.0])
     else:
         glDisable(GL_LIGHTING)
-        glDisable(GL_LIGHT0)
-        glDisable(GL_DEPTH_TEST)
 
     vbo.bind()
 
@@ -379,6 +397,21 @@ def display():
     else:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         glDrawArrays(GL_TRIANGLES, 0, len(data))
+
+    if shadow:
+        glDisable(GL_LIGHTING)
+        glMatrixMode(GL_MODELVIEW)
+        glTranslatef(0.0, boundingBox[0][1], 0.0)
+        p = [1.0, 0, 0, 0, 0, 1.0, 0, -1.0 / lightPos[1], 0, 0, 1.0, 0, 0, 0, 0, 0]
+        glPushMatrix()
+        glTranslatef(lightPos[0], lightPos[1], lightPos[2])
+        glMultMatrixf(p)
+        glTranslatef(-lightPos[0], -lightPos[1], -lightPos[2])
+        glColor3f(SHADOW_COLOR[0], SHADOW_COLOR[1], SHADOW_COLOR[2])
+        glTranslatef(0.0, -boundingBox[0][1], 0.0)
+        glDrawArrays(GL_TRIANGLES, 0, len(data))
+        glColor(currentColor)
+        glPopMatrix()
 
     vbo.unbind()
 
