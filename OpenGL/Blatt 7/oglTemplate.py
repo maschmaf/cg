@@ -240,17 +240,13 @@ def mouseMotion(x, y):
         value = 0.02
         if mouseLastY < y:
             zoomFactor += value
-            if zoomFactor >= MAX_ZOOM:
-                zoomFactor = MAX_ZOOM - value
-            if zoomFactor <= MIN_ZOOM:
-                zoomFactor = MIN_ZOOM
-
-        if mouseLastY > y:
+        elif mouseLastY > y:
             zoomFactor -= value
-            if zoomFactor >= MAX_ZOOM:
-                zoomFactor = MAX_ZOOM - value
-            if zoomFactor <= MIN_ZOOM:
-                zoomFactor = MIN_ZOOM
+
+        if zoomFactor >= MAX_ZOOM:
+            zoomFactor = MAX_ZOOM - value
+        if zoomFactor <= MIN_ZOOM:
+            zoomFactor = MIN_ZOOM
         camZ = zoomFactor
         reshape(WIDTH, HEIGHT)
 
