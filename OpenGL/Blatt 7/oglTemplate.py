@@ -317,17 +317,15 @@ def keyPressed(key, x, y):
 
 def reshape(width, height):
     """ adjust projection matrix to window size"""
-    global orthoMode, WIDTH, HEIGHT, NEAR, FAR, camZ, zoomF, center
-
+    global orthoMode, WIDTH, HEIGHT, NEAR, FAR, camZ, zoomFactor, center
     # Change Matrix Mode
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-
     # set Viewport
-    glViewport(0, 0, int(WIDTH), int(HEIGHT))
+    glViewport(0, 0, int(width), int(height))
 
-    aspectWidth = float(WIDTH) / HEIGHT
-    aspectHeight = float(HEIGHT) / WIDTH
+    aspectWidth = float(width) / height
+    aspectHeight = float(height) / width
 
     if orthoMode:
         if width <= height:
@@ -342,6 +340,9 @@ def reshape(width, height):
         else:
             gluPerspective(FOV, aspectWidth, NEAR, FAR)
         gluLookAt(camX, camY, 3 - camZ, center[0], center[1], center[2], 0, 1, 0)
+
+    WIDTH = width
+    HEIGHT = height
 
     glMatrixMode(GL_MODELVIEW)
 
